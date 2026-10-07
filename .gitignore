@@ -1,0 +1,83 @@
+# Python (api/, pipeline/ helpers)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node / Svelte (web/)
+node_modules/
+web/dist/
+web/build/
+web/.svelte-kit/
+.vite/
+
+# Nextflow (pipeline/)
+.nextflow/
+.nextflow.log*
+work/
+results/
+trace.txt*
+report.html*
+timeline.html*
+dag.*.html
+dag.dot
+
+# Data: structures and fpocket output belong in Cloud Storage, not Git
+*.pdb
+*.cif
+*.mmcif
+*_out/
+data/
+
+# OpenTofu / Terraform (infra/)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfplan
+# Keep the dependency lock file committed: infra/.terraform.lock.hcl
+
+# Secrets and credentials (never commit; see CLAUDE.md: nothing by hand, all in Git, but not secrets)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*-sa-key.json
+credentials.json
+service-account*.json
+kubeconfig
+*.kubeconfig
+
+# Local Kustomize / cluster scratch
+deploy/**/secrets/
+*.local.yaml
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings (project CLAUDE.md stays committed)
+.claude/settings.local.json
+CLAUDE.md
