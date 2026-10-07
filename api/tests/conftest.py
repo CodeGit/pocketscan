@@ -5,14 +5,25 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from pocketscan_api.config import get_settings
-from pocketscan_api.db import get_engine
+from pocketscan_api.db import get_engine, get_session
+from pocketscan_api.main import app
 
 API_DIR = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture
+def client(session: Session) -> Iterator[TestClient]:
+    """The app wired to the per-test session, so nothing persists."""
+    app.dependency_overrides[get_session] = lambda: session
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
 
 
 def _test_database_url() -> str:
