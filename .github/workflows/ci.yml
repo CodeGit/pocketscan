@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.13.1
+      
+      - name: Check formatting
+        working-directory: infra
+        run: tofu fmt -check -recursive
+      
+      - name: Validate bootstrap
+        working-directory: infra/bootstrap
+        run: | 
+          tofu init -backend=false
+          tofu validate
+
+  open-pr:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Open Pull Request from dev to main if one does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ahead=$(gh api "repos/$GH_REPO/compare/main...dev" --jq .ahead_by)
+          if [ "$ahead" = "0" ]; then
+            echo "dev has nothing new for main"; exit 0
+          fi
+          open=$(gh pr list --head dev --base main --state open --json number --jq length)
+          if [ "$open" != "0" ]; then
+            echo "A PR is already open"; exit 0
+          fi
+          gh pr create --head dev --base main \
+            --title "Promote dev to main" \
+            --body "Opened automatically after CI passed on ${GITHUB_SHA::7}. Needs human approval."
