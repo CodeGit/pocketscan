@@ -116,7 +116,15 @@ that cannot be OpenTofu, because the provider needs them in place first.
 1. Create a separate GCP project and note its **project ID** (not the display
    name or number); the ID is what `gcloud` and OpenTofu take.
 2. Link a billing account to the project. A free-trial credit is enough; no
-   deposit is needed, and it expires after a fixed period.
+   deposit is needed, and it expires after a fixed period. Note the **billing
+   account ID** (for example `015DF0-EAA37D-C6C842`); the budget in
+   `infra/bootstrap/` takes it as the `billing_account` variable. Find it with:
+   ```bash
+   gcloud billing projects describe <project-id> --format='value(billingAccountName)'
+   gcloud billing accounts list
+   ```
+   The ID is the part after `billingAccounts/`. If you have more than one
+   billing account, use the one the project is linked to.
 3. Make sure your account has Owner on the project and Billing Account
    Administrator on the billing account (project Owner does not cover the
    billing account).
@@ -149,8 +157,11 @@ pocketscan project.
 The long-lived layer, applied once and never destroyed. It currently enables
 the project's APIs (`serviceusage`, `cloudresourcemanager`, `cloudbilling`,
 `billingbudgets`, `iam`, `compute`, `container`, `pubsub`, `artifactregistry`,
-`storage`) with `disable_on_destroy = false`. The budget and shutdown are not
-in it yet.
+`storage`) with `disable_on_destroy = false`. It also holds the £10 monthly
+budget (`budget.tf`), measured before credits, with email alerts at 50% and
+90% of actual spend and at 100% of actual and forecast spend. Alerts go to the
+billing account's administrators by default. Budget data lags by up to a day,
+so this is an alarm, not a hard cap. The automatic shutdown is not built yet.
 
 ```bash
 cd infra/bootstrap
@@ -158,6 +169,9 @@ tofu init
 tofu plan -out=tfplan
 tofu apply tfplan
 ```
+
+From the repository root, `tofu -chdir=infra/bootstrap <command>` does the same
+(`-chdir` is a global option and goes before the subcommand).
 
 - The three APIs enabled by hand in step 5 above are adopted into state by the
   first apply; enabling an API that is already on is a no-op.
