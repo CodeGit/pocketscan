@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from pocketscan_api.db import get_session
 
 app = FastAPI(title="pocketscan", version="0.1.0")
-SessionDep = Annotated[Session, Depends(get_session)]
+type SessionDep = Annotated[Session, Depends(get_session)]
 
 
 @app.get("/healthz")
@@ -18,7 +18,7 @@ def healthz() -> dict[str, str]:
 
 
 @app.get("/readyz")
-def readyz(session: Session) -> dict[str, str]:
+def readyz(session: SessionDep) -> dict[str, str]:
     """Readiness: the database is reachable."""
     try:
         session.execute(text("SELECT 1"))
