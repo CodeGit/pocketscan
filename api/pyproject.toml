@@ -38,6 +38,8 @@ force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ANN"]
+# The formatter wraps code at line-length; E501 would only add errors for long strings.
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
