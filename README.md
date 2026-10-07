@@ -80,7 +80,7 @@ are deliberate omissions.
 
 ## Development
 
-Conventions: Python 3.12 with type hints and ruff; metric units throughout;
+Conventions: Python 3.14 with type hints and ruff; metric units throughout;
 every schema change is an Alembic migration; tests run against a real
 PostgreSQL service container, not SQLite.
 
@@ -98,6 +98,22 @@ Local prerequisites (so far):
   OpenTofu registry (`registry.opentofu.org/hashicorp/google`) and writes
   `.terraform.lock.hcl`, which is committed so provider builds stay pinned.
   `.terraform/` is not committed.
+- [`uv`](https://docs.astral.sh/uv/) for the Python environment and lock file
+  (`api/uv.lock`, committed). The Python version is pinned in
+  `api/.python-version` and `requires-python`.
+- [`pre-commit`](https://pre-commit.com/), to run ruff on commit. Install it
+  once, then enable the hook once per clone:
+  ```bash
+  uv tool install pre-commit
+  pre-commit install
+  ```
+  The hooks are defined in `.pre-commit-config.yaml` (ruff lint with `--fix`,
+  and ruff format, on staged files under `api/`). If a hook changes a file the
+  commit is aborted: `git add` the changes and commit again. Hooks are local
+  and can be skipped, so CI is the enforcement: it runs `ruff check` and
+  `ruff format --check`.
+- Podman, not Docker, for local containers. Tests read the database location
+  from `TEST_DATABASE_URL`, so any reachable PostgreSQL works.
 
 Build, run and test instructions will be added as each component lands.
 

@@ -3,7 +3,6 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-.python-version
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -53,6 +52,7 @@ override.tf.json
 .terraformrc
 terraform.rc
 *.tfplan
+tfplan
 # Keep the dependency lock file committed: infra/.terraform.lock.hcl
 
 # Secrets and credentials (never commit; see CLAUDE.md: nothing by hand, all in Git, but not secrets)
