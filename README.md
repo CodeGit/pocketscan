@@ -80,7 +80,7 @@ are deliberate omissions.
 
 ## Development
 
-Conventions: Python 3.12 with type hints and ruff; metric units throughout;
+Conventions: Python 3.14 with type hints and ruff; metric units throughout;
 every schema change is an Alembic migration; tests run against a real
 PostgreSQL service container, not SQLite.
 
@@ -98,6 +98,22 @@ Local prerequisites (so far):
   OpenTofu registry (`registry.opentofu.org/hashicorp/google`) and writes
   `.terraform.lock.hcl`, which is committed so provider builds stay pinned.
   `.terraform/` is not committed.
+- [`uv`](https://docs.astral.sh/uv/) for the Python environment and lock file
+  (`api/uv.lock`, committed). The Python version is pinned in
+  `api/.python-version` and `requires-python`.
+- [`pre-commit`](https://pre-commit.com/), to run ruff on commit. Install it
+  once, then enable the hook once per clone:
+  ```bash
+  uv tool install pre-commit
+  pre-commit install
+  ```
+  The hooks are defined in `.pre-commit-config.yaml` (ruff lint with `--fix`,
+  and ruff format, on staged files under `api/`). If a hook changes a file the
+  commit is aborted: `git add` the changes and commit again. Hooks are local
+  and can be skipped, so CI is the enforcement: it runs `ruff check` and
+  `ruff format --check`.
+- Podman, not Docker, for local containers. Tests read the database location
+  from `TEST_DATABASE_URL`, so any reachable PostgreSQL works.
 
 Build, run and test instructions will be added as each component lands.
 
@@ -116,7 +132,15 @@ that cannot be OpenTofu, because the provider needs them in place first.
 1. Create a separate GCP project and note its **project ID** (not the display
    name or number); the ID is what `gcloud` and OpenTofu take.
 2. Link a billing account to the project. A free-trial credit is enough; no
-   deposit is needed, and it expires after a fixed period.
+   deposit is needed, and it expires after a fixed period. Note the **billing
+   account ID** (for example `015DF0-EAA37D-C6C842`); the budget in
+   `infra/bootstrap/` takes it as the `billing_account` variable. Find it with:
+   ```bash
+   gcloud billing projects describe <project-id> --format='value(billingAccountName)'
+   gcloud billing accounts list
+   ```
+   The ID is the part after `billingAccounts/`. If you have more than one
+   billing account, use the one the project is linked to.
 3. Make sure your account has Owner on the project and Billing Account
    Administrator on the billing account (project Owner does not cover the
    billing account).
@@ -149,8 +173,11 @@ pocketscan project.
 The long-lived layer, applied once and never destroyed. It currently enables
 the project's APIs (`serviceusage`, `cloudresourcemanager`, `cloudbilling`,
 `billingbudgets`, `iam`, `compute`, `container`, `pubsub`, `artifactregistry`,
-`storage`) with `disable_on_destroy = false`. The budget and shutdown are not
-in it yet.
+`storage`) with `disable_on_destroy = false`. It also holds the £10 monthly
+budget (`budget.tf`), measured before credits, with email alerts at 50% and
+90% of actual spend and at 100% of actual and forecast spend. Alerts go to the
+billing account's administrators by default. Budget data lags by up to a day,
+so this is an alarm, not a hard cap. The automatic shutdown is not built yet.
 
 ```bash
 cd infra/bootstrap
@@ -158,6 +185,9 @@ tofu init
 tofu plan -out=tfplan
 tofu apply tfplan
 ```
+
+From the repository root, `tofu -chdir=infra/bootstrap <command>` does the same
+(`-chdir` is a global option and goes before the subcommand).
 
 - The three APIs enabled by hand in step 5 above are adopted into state by the
   first apply; enabling an API that is already on is a no-op.
