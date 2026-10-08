@@ -1,8 +1,10 @@
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 
 from pocketscan_api.models import JobProtein, Status
-from pocketscan_api.schemas import JobCreate, JobProteinOut
+from pocketscan_api.schemas import JobCreate, JobProteinOut, ResultIn
 
 
 def test_request_is_normalised() -> None:
@@ -25,3 +27,15 @@ def test_job_protein_out_reads_from_an_orm_object() -> None:
     row = JobProtein(accession="P08100", status=Status.FAILED, error="model not found")
     out = JobProteinOut.model_validate(row)
     assert (out.accession, out.status, out.error) == ("P08100", Status.FAILED, "model not found")
+
+
+def test_result_body_parses(result_body: dict[str, Any]) -> None:
+    result = ResultIn(**result_body)
+    assert result.run.status == Status.SUCCEEDED
+    assert [p.rank for p in result.pockets] == [1, 2]
+
+
+def test_duplicate_pocket_ranks_are_rejected(result_body: dict[str, Any]) -> None:
+    result_body["pockets"][1]["rank"] = 1
+    with pytest.raises(ValidationError):
+        ResultIn(**result_body)

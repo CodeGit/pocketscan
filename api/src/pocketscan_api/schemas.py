@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pocketscan_api.models import Status
 from pocketscan_api.request_keys import normalise_accessions
@@ -46,3 +47,40 @@ class JobOut(BaseModel):
     created_at: datetime
     status: Status
     proteins: list[JobProteinOut]
+
+
+class StructureIn(BaseModel):
+    source: str  # "alphafold"
+    source_version: str  # "v6"
+    gcs_uri: str
+
+
+class RunIn(BaseModel):
+    tool: str
+    tool_version: str  # includes the git commit
+    params: dict[str, Any]  # hashed server-side, never trusted from the client
+    status: Status = Status.SUCCEEDED
+    output_gcs_uri: str | None = None
+
+
+class PocketIn(BaseModel):
+    rank: int = Field(ge=1)
+    score: float
+    volume_a3: float = Field(ge=0)
+    mean_sasa_a2: float | None = Field(default=None, ge=0)
+    mean_plddt: float | None = Field(default=None, ge=0, le=100)
+    residues: list[str]
+
+
+class ResultIn(BaseModel):
+    sequence: str = Field(min_length=1)
+    structure: StructureIn
+    run: RunIn
+    pockets: list[PocketIn]
+
+    @model_validator(mode="after")
+    def ranks_are_unique(self) -> ResultIn:
+        ranks = [p.rank for p in self.pockets]
+        if len(ranks) != len(set(ranks)):
+            raise ValueError("pocket ranks must be unique")
+        return self

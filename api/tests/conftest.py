@@ -1,6 +1,7 @@
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -85,3 +86,38 @@ def session(engine: Engine) -> Iterator[Session]:
         with Session(connection, join_transaction_mode="create_savepoint") as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def result_body() -> dict[str, Any]:
+    return {
+        "sequence": "MKVLAAGIVGLLLAQ",
+        "structure": {
+            "source": "alphafold",
+            "source_version": "v6",
+            "gcs_uri": "gs://bucket/AF-P08100-F1.pdb",
+        },
+        "run": {
+            "tool": "fpocket",
+            "tool_version": "4.0+4bb0d84",
+            "params": {"min_alpha_sphere": 3.0},
+        },
+        "pockets": [
+            {
+                "rank": 1,
+                "score": 0.9,
+                "volume_a3": 410.5,
+                "mean_sasa_a2": 22.1,
+                "mean_plddt": 91.3,
+                "residues": ["A:12:LEU", "A:13:GLY"],
+            },
+            {
+                "rank": 2,
+                "score": 0.4,
+                "volume_a3": 150.0,
+                "mean_sasa_a2": None,
+                "mean_plddt": 74.0,
+                "residues": ["A:40:ALA"],
+            },
+        ],
+    }
