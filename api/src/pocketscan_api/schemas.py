@@ -84,3 +84,13 @@ class ResultIn(BaseModel):
         if len(ranks) != len(set(ranks)):
             raise ValueError("pocket ranks must be unique")
         return self
+
+
+class PocketOut(BaseModel):
+    accession: str
+    rank: int
+    score: float
+    volume_a3: float
+    mean_sasa_a2: float | None
+    mean_plddt: float | None
+    residues: list[str]

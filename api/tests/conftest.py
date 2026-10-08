@@ -89,6 +89,23 @@ def session(engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture
+def committed_jobs(engine: Engine) -> Iterator[None]:
+    """These tests really commit (no rollback), so empty the tables around them.
+
+    CASCADE from job reaches job_protein; CASCADE from protein reaches structure,
+    analysis_run and pocket (and job_protein again).
+    """
+
+    def truncate() -> None:
+        with engine.begin() as connection:
+            connection.execute(text("TRUNCATE job, protein RESTART IDENTITY CASCADE"))
+
+    truncate()
+    yield
+    truncate()
+
+
+@pytest.fixture
 def result_body() -> dict[str, Any]:
     return {
         "sequence": "MKVLAAGIVGLLLAQ",

@@ -1,6 +1,6 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,12 +8,21 @@ from sqlalchemy.orm import Session, selectinload
 
 from pocketscan_api.db import get_session
 from pocketscan_api.job_status import derive_job_status
-from pocketscan_api.models import Job, JobProtein
+from pocketscan_api.models import Job, JobProtein, Pocket, Status
 from pocketscan_api.request_keys import compute_request_key
-from pocketscan_api.schemas import JobCreate, JobOut, JobProteinOut
+from pocketscan_api.schemas import JobCreate, JobOut, JobProteinOut, PocketOut
 
 app = FastAPI(title="pocketscan", version="0.1.0")
 type SessionDep = Annotated[Session, Depends(get_session)]
+
+type PocketSort = Literal["rank", "score", "volume_a3", "mean_sasa_a2", "mean_plddt"]
+POCKET_SORT_COLUMNS = {
+    "rank": Pocket.rank,
+    "score": Pocket.score,
+    "volume_a3": Pocket.volume_a3,
+    "mean_sasa_a2": Pocket.mean_sasa_a2,
+    "mean_plddt": Pocket.mean_plddt,
+}
 
 
 @app.get("/healthz")
@@ -80,3 +89,56 @@ def get_job(job_id: int, session: SessionDep) -> JobOut:
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
     return job_to_out(job)
+
+
+@app.get("/jobs/{job_id}/pockets", response_model=list[PocketOut])
+def list_pockets(
+    job_id: int,
+    session: SessionDep,
+    accession: str | None = None,
+    min_score: float | None = None,
+    min_volume_a3: float | None = None,
+    min_mean_plddt: float | None = None,
+    sort: PocketSort = "rank",
+    order: Literal["asc", "desc"] = "asc",
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[PocketOut]:
+    """Pockets for the job's succeeded proteins, sorted and filtered in the database.
+
+    Proteins that are still pending, running or failed have no pockets to show.
+    Ties on the sort column fall back to accession then rank, so paging is stable.
+    """
+    if session.get(Job, job_id) is None:
+        raise HTTPException(status_code=404, detail="job not found")
+
+    stmt = (
+        select(
+            JobProtein.accession,
+            Pocket.rank,
+            Pocket.score,
+            Pocket.volume_a3,
+            Pocket.mean_sasa_a2,
+            Pocket.mean_plddt,
+            Pocket.residues,
+        )
+        .join(Pocket, Pocket.analysis_run_id == JobProtein.analysis_run_id)
+        .where(JobProtein.job_id == job_id, JobProtein.status == Status.SUCCEEDED)
+    )
+    if accession is not None:
+        stmt = stmt.where(JobProtein.accession == accession.strip().upper())
+    if min_score is not None:
+        stmt = stmt.where(Pocket.score >= min_score)
+    if min_volume_a3 is not None:
+        stmt = stmt.where(Pocket.volume_a3 >= min_volume_a3)
+    if min_mean_plddt is not None:
+        stmt = stmt.where(Pocket.mean_plddt >= min_mean_plddt)
+
+    column = POCKET_SORT_COLUMNS[sort]
+    direction = column.asc() if order == "asc" else column.desc()
+    stmt = (
+        stmt.order_by(direction.nulls_last(), JobProtein.accession, Pocket.rank)
+        .limit(limit)
+        .offset(offset)
+    )
+    return [PocketOut(**row) for row in session.execute(stmt).mappings()]

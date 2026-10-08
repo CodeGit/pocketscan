@@ -1,10 +1,15 @@
+import argparse
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from pocketscan_api.db import get_engine
 from pocketscan_api.fingerprints import params_hash, sequence_hash
 from pocketscan_api.models import (
     AnalysisRun,
@@ -116,3 +121,58 @@ def record_result(session: Session, job_id: int, accession: str, result: ResultI
     job_protein.error = None
     session.flush()
     return RecordOutcome(analysis_run_id=run.id, cache_hit=cache_hit)
+
+
+def run_result(args: argparse.Namespace) -> int:
+    try:
+        result = ResultIn.model_validate_json(args.path.read_text())
+    except (OSError, ValidationError) as error:
+        print(f"invalid result: {error}", file=sys.stderr)
+        return 2
+
+    with Session(get_engine()) as session:
+        try:
+            outcome = record_result(session, args.job_id, args.accession, result)
+        except LookupError as error:
+            print(error, file=sys.stderr)
+            return 1
+        session.commit()
+    print(f"cache_hit={str(outcome.cache_hit).lower()} run={outcome.analysis_run_id}")
+    return 0
+
+
+def run_fail(args: argparse.Namespace) -> int:
+    with Session(get_engine()) as session:
+        try:
+            mark_status(session, args.job_id, args.accession, Status.FAILED, args.error)
+        except LookupError as error:
+            print(error, file=sys.stderr)
+            return 1
+        session.commit()
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="python -m pocketscan_api.ingest")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    result = commands.add_parser("result", help="records a completed analysis")
+    result.add_argument("path", type=Path, help="result.json written by the pipeline")
+
+    fail = commands.add_parser("fail", help="mark a protein job as failed")
+    fail.add_argument("--error", required=True)
+
+    for command in (result, fail):
+        command.add_argument("--job-id", type=int, required=True)
+        command.add_argument("--accession", required=True)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    handler = run_result if args.command == "result" else run_fail
+    return handler(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

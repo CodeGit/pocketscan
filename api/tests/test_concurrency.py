@@ -1,11 +1,9 @@
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from typing import Any
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, func, select, text
+from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from pocketscan_api.ingest import RecordOutcome, record_result
@@ -14,23 +12,6 @@ from pocketscan_api.models import AnalysisRun, Job, JobProtein, Pocket, Protein,
 from pocketscan_api.schemas import ResultIn
 
 WORKERS = 8
-
-
-@pytest.fixture
-def committed_jobs(engine: Engine) -> Iterator[None]:
-    """These tests really commit (no rollback), so empty the tables around them.
-
-    CASCADE from job reaches job_protein; CASCADE from protein reaches structure,
-    analysis_run and pocket (and job_protein again).
-    """
-
-    def truncate() -> None:
-        with engine.begin() as connection:
-            connection.execute(text("TRUNCATE job, protein RESTART IDENTITY CASCADE"))
-
-    truncate()
-    yield
-    truncate()
 
 
 def post_when_everyone_is_ready(barrier: Barrier, body: dict[str, list[str]]) -> tuple[int, int]:
