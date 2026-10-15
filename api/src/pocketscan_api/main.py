@@ -1,14 +1,18 @@
+from pathlib import Path
 from typing import Annotated, Literal
+from urllib.parse import unquote, urlparse
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from pocketscan_api.config import get_settings
 from pocketscan_api.db import get_session
 from pocketscan_api.job_status import derive_job_status
-from pocketscan_api.models import Job, JobProtein, Pocket, Status
+from pocketscan_api.models import AnalysisRun, Job, JobProtein, Pocket, Status, Structure
 from pocketscan_api.request_keys import compute_request_key
 from pocketscan_api.schemas import JobCreate, JobOut, JobProteinOut, PocketOut, PocketPage
 
@@ -147,3 +151,36 @@ def list_pockets(
     )
     items = [PocketOut(**row) for row in session.execute(stmt).mappings()]
     return PocketPage(total=total, items=items)
+
+
+def structure_file(uri: str) -> FileResponse:
+    """Serve a stored structure. Only file:// URIs under the configured root, for now."""
+    parsed = urlparse(uri)
+    if parsed.scheme != "file":
+        # gs:// objects will be served through a short-lived signed-URL redirect.
+        raise HTTPException(
+            status_code=501, detail=f"{parsed.scheme}:// structures are not served yet"
+        )
+    root = get_settings().local_structure_root
+    path = Path(unquote(parsed.path)).resolve()
+    if root is None or not path.is_relative_to(root.resolve()) or not path.is_file():
+        raise HTTPException(status_code=404, detail="structure not found")
+    return FileResponse(path, media_type="chemical/x-mmcif")
+
+
+@app.get("/jobs/{job_id}/structures/{accession}")
+def get_structure(job_id: int, accession: str, session: SessionDep) -> FileResponse:
+    """The AlphaFold model that this job's protein was analysed against."""
+    uri = session.scalar(
+        select(Structure.gcs_uri)
+        .join(AnalysisRun, AnalysisRun.structure_id == Structure.id)
+        .join(JobProtein, JobProtein.analysis_run_id == AnalysisRun.id)
+        .where(
+            JobProtein.job_id == job_id,
+            JobProtein.accession == accession.strip().upper(),
+            JobProtein.status == Status.SUCCEEDED,
+        )
+    )
+    if uri is None:
+        raise HTTPException(status_code=404, detail="structure not found")
+    return structure_file(uri)
