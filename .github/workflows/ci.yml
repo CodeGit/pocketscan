@@ -94,7 +94,33 @@ jobs:
 
       - name: Test
         run: uv run pytest -v
-  
+
+  # Builds both images from the repo root (pipeline/ depends on ../api by path) and
+  # checks each starts. Nothing is pushed. The pipeline image compiles fpocket, so this
+  # is the slowest job; it is not (yet) a required check or a dependency of open-pr.
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: api/Dockerfile
+            smoke: python -c "import pocketscan_api.main" && alembic -c /app/alembic.ini heads
+          - name: pipeline
+            dockerfile: pipeline/Dockerfile
+            smoke: fpocket -h && python -c "import Bio, pocketscan_api" && analyse.py --help
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build ${{ matrix.name }} image
+        run: docker build -f ${{ matrix.dockerfile }} -t pocketscan-${{ matrix.name }} .
+
+      - name: Smoke test ${{ matrix.name }} image
+        run: docker run --rm pocketscan-${{ matrix.name }} sh -c '${{ matrix.smoke }}'
+
   open-pr:
     needs: [infra, api, pipeline]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
