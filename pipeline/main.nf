@@ -115,6 +115,10 @@ workflow {
     if (!params.job_id || !params.accessions) {
         error "usage: nextflow run main.nf --job_id <id> --accessions P08100,Q9Y6K9"
     }
+    // RECORD and REPORT_FAILURE need the database. Fail now, not after the slow steps.
+    if (!System.getenv('POCKETSCAN_DATABASE_URL')) {
+        error "POCKETSCAN_DATABASE_URL is not set; export it before running the pipeline"
+    }
 
     accessions = Channel.fromList(params.accessions.tokenize(',').collect { it.trim() }.unique())
 
