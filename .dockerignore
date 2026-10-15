@@ -1,0 +1,19 @@
+# The build context for pipeline/Dockerfile is the repo root (the pipeline depends on
+# ../api by path). Keep it small, and keep secrets out of image layers.
+.git
+.github
+**/.env
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+infra
+deploy
+web
+pipeline/.nextflow*
+pipeline/work
+pipeline/results
+pipeline/tests
+api/tests
+# local experiments in the repo root
+AF-*
