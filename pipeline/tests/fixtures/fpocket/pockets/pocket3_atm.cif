@@ -1,0 +1,70 @@
+data_pocket3_atm
+# 
+loop_
+_struct.pdbx_descriptor
+This is a mmcif format file writen by the programm fpocket.                 
+It represents the atoms contacted by the voronoi vertices of the pocket.  
+                                                                           
+Information about the pocket     3:
+0  - Pocket Score                      : 0.0349
+1  - Drug Score                        : 0.0027
+2  - Number of alpha spheres           :    40
+3  - Mean alpha-sphere radius          : 3.7669
+4  - Mean alpha-sphere Solvent Acc.    : 0.4677
+5  - Mean B-factor of pocket residues  : 0.5319
+6  - Hydrophobicity Score              : -1.5000
+7  - Polarity Score                    :     7
+8  - Amino Acid based volume Score     : 3.4167
+9  - Pocket volume (Monte Carlo)       : 219.5957
+10  -Pocket volume (convex hull)       : 8.9799
+11 - Charge Score                      :    -2
+12 - Local hydrophobic density Score   : 10.1667
+13 - Number of apolar alpha sphere     :    12
+14 - Proportion of apolar alpha sphere : 0.3000
+# 
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.label_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.pdbx_formal_charge
+_atom_site.auth_seq_id
+_atom_site.auth_asym_id
+ATOM    2586     N  ND2 ?  ASN      A 326 ?  -31.248   16.600   14.544  -4.12  0 326 A
+ATOM    2615     N    N ?  ASP      A 331 ?  -35.093   11.543   14.109   0.00  0 331 A
+ATOM    2619     O    O ?  ASP      A 331 ?  -33.066    9.167   15.544   0.00  0 331 A
+ATOM    2617     C    C ?  ASP      A 331 ?  -34.095    9.852   15.590   0.00  0 331 A
+ATOM    2606     O    O ?  GLY      A 329 ?  -34.656   14.028   12.383  -4.29  0 329 A
+ATOM    2608     C   CA ?  ASP      A 330 ?  -35.377   13.773   15.071   0.00  0 330 A
+ATOM    2623     N    N ?  GLU      A 332 ?  -34.484   10.415   16.744   0.00  0 332 A
+ATOM    2624     C   CA ?  GLU      A 332 ?  -33.882   10.121   18.058   0.00  0 332 A
+ATOM    2628     C   CG ?  GLU      A 332 ?  -33.495   12.157   19.551   0.00  0 332 A
+ATOM    2509     N  ND2 ?  ASN      A 315 ?  -30.996   10.158   11.244  -4.37  0 315 A
+ATOM    2587     O  OD1 ?  ASN      A 326 ?  -29.844   17.258   12.989  -2.14  0 326 A
+ATOM    2595     N    N ?  LEU      A 328 ?  -34.025   16.500    8.444   0.00  0 328 A
+ATOM    2583     C   CB ?  ASN      A 326 ?  -32.146   17.735   12.591   0.00  0 326 A
+ATOM    2581     C   CA ?  ASN      A 326 ?  -31.716   18.649   11.419   0.00  0 326 A
+ATOM    2598     C   CB ?  LEU      A 328 ?  -33.826   14.081    8.089   0.00  0 328 A
+ATOM    2594     C   CD ?  PRO      A 327 ?  -31.172   18.726    8.441   0.00  0 327 A
+ATOM    2613     O  OD1 ?  ASP      A 330 ?  -33.739   15.754   16.284  -1.21  0 330 A
+ATOM    2528     C   CB ?  LEU      A 318 ?  -27.952   15.812    7.366   0.00  0 318 A
+ATOM    2507     O    O ?  ASN      A 315 ?  -27.304   14.406   10.675   0.00  0 315 A
+ATOM    2585     C   CG ?  ASN      A 326 ?  -30.991   17.187   13.397   0.00  0 326 A
+ATOM    2506     C   CB ?  ASN      A 315 ?  -28.977   11.505   11.145   0.00  0 315 A
+ATOM    2508     C   CG ?  ASN      A 315 ?  -30.107   10.734   10.468   0.00  0 315 A
+ATOM    2531     C  CD1 ?  LEU      A 318 ?  -29.227   14.151    6.020   0.00  0 318 A
+ATOM    2504     C   CA ?  ASN      A 315 ?  -28.021   12.192   10.153   0.00  0 315 A
+ATOM    2601     C  CD1 ?  LEU      A 328 ?  -32.228   12.944    6.547   0.00  0 328 A
+ATOM    550      N   NZ ?  LYS      A 67 ?  -26.738   12.913   16.392  -2.35  0 67 A
+ATOM    2646     C   CB ?  ALA      A 335 ?  -29.010    8.636   18.794   0.00  0 335 A
+ATOM    2539     O  OG1 ?  THR      A 319 ?  -27.417   16.489   12.657  -2.14  0 319 A
+# 

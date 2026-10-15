@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +13,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="POCKETSCAN_", env_file=".env", extra="ignore")
     database_url: str
+    # Directory that file:// structure URIs may be served from. Local development only;
+    # leave unset in the cluster, where structures are gs:// objects.
+    local_structure_root: Path | None = None
 
 
 @lru_cache

@@ -72,8 +72,70 @@ jobs:
       - name: Test
         run: uv run pytest -v
 
+  pipeline:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pipeline
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Check formatting
+        run: uv run ruff format --check
+
+      - name: Test
+        run: uv run pytest -v
+
+  # Builds both images from the repo root (pipeline/ depends on ../api by path) and
+  # checks each starts. Nothing is pushed. Layers are cached in the GitHub Actions
+  # cache; a cold pipeline build compiles fpocket, so it is the slowest job. It is not
+  # (yet) a required check or a dependency of open-pr.
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: api/Dockerfile
+            smoke: python -c "import pocketscan_api.main" && alembic -c /app/alembic.ini heads
+          - name: pipeline
+            dockerfile: pipeline/Dockerfile
+            smoke: fpocket -h && python -c "import Bio, pocketscan_api" && analyse.py --help
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # mode=max also caches the intermediate stages, which is what saves the fpocket
+      # compile. Each image has its own cache scope so they do not evict each other.
+      - name: Build ${{ matrix.name }} image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          tags: pocketscan-${{ matrix.name }}:ci
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: Smoke test ${{ matrix.name }} image
+        run: docker run --rm pocketscan-${{ matrix.name }}:ci sh -c '${{ matrix.smoke }}'
+
   open-pr:
-    needs: [infra, api]
+    needs: [infra, api, pipeline]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     permissions:

@@ -1,18 +1,30 @@
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from pocketscan_api.config import get_settings
-from pocketscan_api.db import get_engine
+from pocketscan_api.db import get_engine, get_session
+from pocketscan_api.main import app
 
 API_DIR = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture
+def client(session: Session) -> Iterator[TestClient]:
+    """The app wired to the per-test session, so nothing persists."""
+    app.dependency_overrides[get_session] = lambda: session
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
 
 
 def _test_database_url() -> str:
@@ -74,3 +86,55 @@ def session(engine: Engine) -> Iterator[Session]:
         with Session(connection, join_transaction_mode="create_savepoint") as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def committed_jobs(engine: Engine) -> Iterator[None]:
+    """These tests really commit (no rollback), so empty the tables around them.
+
+    CASCADE from job reaches job_protein; CASCADE from protein reaches structure,
+    analysis_run and pocket (and job_protein again).
+    """
+
+    def truncate() -> None:
+        with engine.begin() as connection:
+            connection.execute(text("TRUNCATE job, protein RESTART IDENTITY CASCADE"))
+
+    truncate()
+    yield
+    truncate()
+
+
+@pytest.fixture
+def result_body() -> dict[str, Any]:
+    return {
+        "sequence": "MKVLAAGIVGLLLAQ",
+        "structure": {
+            "source": "alphafold",
+            "source_version": "v6",
+            "gcs_uri": "gs://bucket/AF-P08100-F1.pdb",
+        },
+        "run": {
+            "tool": "fpocket",
+            "tool_version": "4.0+4bb0d84",
+            "params": {"min_alpha_sphere": 3.0},
+        },
+        "pockets": [
+            {
+                "rank": 1,
+                "score": 0.9,
+                "volume_a3": 410.5,
+                "mean_sasa_a2": 22.1,
+                "mean_plddt": 91.3,
+                "residues": ["A:12:LEU", "A:13:GLY"],
+            },
+            {
+                "rank": 2,
+                "score": 0.4,
+                "volume_a3": 150.0,
+                "mean_sasa_a2": None,
+                "mean_plddt": 74.0,
+                "residues": ["A:40:ALA"],
+            },
+        ],
+    }

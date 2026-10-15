@@ -81,3 +81,6 @@ Thumbs.db
 # Claude Code local settings (project CLAUDE.md stays committed)
 .claude/settings.local.json
 CLAUDE.md
+
+# Test fixtures are real data, so they are kept despite the *.cif rule above.
+!pipeline/tests/fixtures/**/*.cif
