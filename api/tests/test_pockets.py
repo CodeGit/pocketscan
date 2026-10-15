@@ -36,10 +36,14 @@ def job_id(
     return job["id"]
 
 
-def pockets(client: TestClient, job_id: int, **params: str | float) -> list[dict[str, Any]]:
+def page(client: TestClient, job_id: int, **params: str | float) -> dict[str, Any]:
     response = client.get(f"/jobs/{job_id}/pockets", params=params)
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def pockets(client: TestClient, job_id: int, **params: str | float) -> list[dict[str, Any]]:
+    return page(client, job_id, **params)["items"]
 
 
 def keys(rows: list[dict[str, Any]]) -> list[tuple[str, int]]:
@@ -98,6 +102,31 @@ def test_limit_and_offset_page_through_a_stable_order(client: TestClient, job_id
     assert keys(pockets(client, job_id, limit=3, offset=3)) == everything[3:]
 
 
+def test_total_counts_every_match_regardless_of_limit_and_offset(
+    client: TestClient, job_id: int
+) -> None:
+    first_page = page(client, job_id, limit=1)
+    last_page = page(client, job_id, limit=3, offset=3)
+
+    assert first_page["total"] == last_page["total"] == 4
+    assert len(first_page["items"]) == 1
+    assert len(last_page["items"]) == 1
+
+
+def test_total_reflects_the_filters(client: TestClient, job_id: int) -> None:
+    assert page(client, job_id, min_score=0.5)["total"] == 2
+    assert page(client, job_id, accession="P08100")["total"] == 2
+    assert page(client, job_id, min_score=0.95)["total"] == 0
+
+
+def test_total_counts_only_succeeded_proteins(
+    client: TestClient, session: Session, job_id: int
+) -> None:
+    mark_status(session, job_id, "Q9Y6K9", Status.FAILED, error="boom")
+
+    assert page(client, job_id)["total"] == 2
+
+
 def test_only_succeeded_proteins_contribute_pockets(
     client: TestClient, session: Session, job_id: int
 ) -> None:
@@ -109,7 +138,7 @@ def test_only_succeeded_proteins_contribute_pockets(
 def test_job_with_nothing_analysed_has_an_empty_list(client: TestClient) -> None:
     job = client.post("/jobs", json={"accessions": ["P08100"]}).json()
 
-    assert pockets(client, job["id"]) == []
+    assert page(client, job["id"]) == {"total": 0, "items": []}
 
 
 def test_unknown_job_is_404(client: TestClient) -> None:

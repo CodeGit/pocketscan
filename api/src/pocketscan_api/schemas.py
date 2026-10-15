@@ -94,3 +94,8 @@ class PocketOut(BaseModel):
     mean_sasa_a2: float | None
     mean_plddt: float | None
     residues: list[str]
+
+
+class PocketPage(BaseModel):
+    total: int  # all pockets matching the filters, before limit and offset
+    items: list[PocketOut]

@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
@@ -10,7 +10,7 @@ from pocketscan_api.db import get_session
 from pocketscan_api.job_status import derive_job_status
 from pocketscan_api.models import Job, JobProtein, Pocket, Status
 from pocketscan_api.request_keys import compute_request_key
-from pocketscan_api.schemas import JobCreate, JobOut, JobProteinOut, PocketOut
+from pocketscan_api.schemas import JobCreate, JobOut, JobProteinOut, PocketOut, PocketPage
 
 app = FastAPI(title="pocketscan", version="0.1.0")
 type SessionDep = Annotated[Session, Depends(get_session)]
@@ -91,7 +91,7 @@ def get_job(job_id: int, session: SessionDep) -> JobOut:
     return job_to_out(job)
 
 
-@app.get("/jobs/{job_id}/pockets", response_model=list[PocketOut])
+@app.get("/jobs/{job_id}/pockets", response_model=PocketPage)
 def list_pockets(
     job_id: int,
     session: SessionDep,
@@ -103,8 +103,10 @@ def list_pockets(
     order: Literal["asc", "desc"] = "asc",
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> list[PocketOut]:
+) -> PocketPage:
     """Pockets for the job's succeeded proteins, sorted and filtered in the database.
+
+    `total` counts every pocket matching the filters, so a table can show "21-40 of 133".
 
     Proteins that are still pending, running or failed have no pockets to show.
     Ties on the sort column fall back to accession then rank, so paging is stable.
@@ -134,6 +136,8 @@ def list_pockets(
     if min_mean_plddt is not None:
         stmt = stmt.where(Pocket.mean_plddt >= min_mean_plddt)
 
+    total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+
     column = POCKET_SORT_COLUMNS[sort]
     direction = column.asc() if order == "asc" else column.desc()
     stmt = (
@@ -141,4 +145,5 @@ def list_pockets(
         .limit(limit)
         .offset(offset)
     )
-    return [PocketOut(**row) for row in session.execute(stmt).mappings()]
+    items = [PocketOut(**row) for row in session.execute(stmt).mappings()]
+    return PocketPage(total=total, items=items)
