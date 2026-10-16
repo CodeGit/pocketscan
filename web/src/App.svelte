@@ -1,8 +1,9 @@
 <script lang="ts">
-  import type { Job } from './lib/api'
+  import type { Job, Pocket } from './lib/api'
   import JobForm from './lib/JobForm.svelte'
   import JobStatus from './lib/JobStatus.svelte'
   import PocketTable from './lib/PocketTable.svelte'
+  import StructureViewer from './lib/StructureViewer.svelte'
 
   const fromHash = () => {
     const match = location.hash.match(/^#job=(\d+)$/)
@@ -11,6 +12,7 @@
 
   let jobId = $state<number | null>(fromHash())
   let job = $state<Job | null>(null)
+  let selected = $state<Pocket | null>(null)
 
   const hasResults = $derived(job?.proteins.some((p) => p.status === 'succeeded') ?? false)
 
@@ -23,6 +25,7 @@
   onhashchange={() => {
     jobId = fromHash()
     job = null
+    selected = null
   }}
 />
 
@@ -34,7 +37,8 @@
     {#key jobId}
       <JobStatus {jobId} onchange={(j) => (job = j)} />
       {#if hasResults}
-        <PocketTable {jobId} />
+        <PocketTable {jobId} onselect={(p) => (selected = p)} />
+        <StructureViewer {jobId} pocket={selected} />
       {/if}
     {/key}
   {/if}
